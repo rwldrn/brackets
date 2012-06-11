@@ -119,8 +119,6 @@ define(function (require, exports, module) {
                 currentWindowOnload();
             }
             
-            jasmineEnv.addReporter(new jasmine.BootstrapReporter(document));
-            
             $("#show-dev-tools").click(function () {
                 brackets.app.showDeveloperTools();
             });
@@ -130,11 +128,29 @@ define(function (require, exports, module) {
             
             suite = getParamMap().suite || localStorage.getItem("SpecRunner.suite") || "UnitTestSuite";
             
-            // add performance reporting
-            if (suite === "PerformanceTestSuite") {
-                jasmineEnv.addReporter(new PerformanceReporter());
-            }
+            var isPerfSuite = (suite === "PerformanceTestSuite"),
+                performanceFilter = function (spec) {
+                    if (spec.performance === true) {
+                        return isPerfSuite;
+                    }
+                    
+                    var suite = spec.suite;
+                    
+                    while (suite) {
+                        if (suite.performance === true) {
+                            return isPerfSuite;
+                        }
+                        
+                        suite = suite.parentSuite;
+                    }
+                    
+                    return !isPerfSuite;
+                };
             
+            jasmineEnv.addReporter(new jasmine.BootstrapReporter(document, performanceFilter));
+            jasmineEnv.addReporter(new PerformanceReporter());
+            
+            // persist suite selection
             localStorage.setItem("SpecRunner.suite", suite);
             
             $("#" + suite).closest("li").toggleClass("active", true);

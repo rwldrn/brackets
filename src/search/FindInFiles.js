@@ -318,7 +318,6 @@ define(function (require, exports, module) {
                                 return result.promise();
                             })
                                 .done(function () {
-                                    console.dir(searchResults);
                                     _showSearchResults(searchResults);
                                 })
                                 .fail(function () {

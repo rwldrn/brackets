@@ -326,8 +326,12 @@ define(function (require, exports, module) {
     }
     
     // create performance measurement constants
-    createPerfMeasurement("OPEN_INLINE_EDITOR", "Open inline editor");
     createPerfMeasurement("OPEN_FILE", "Open file");
+    
+    createPerfMeasurement("INLINE_EDITOR_OPEN", "Open inline editor");
+    createPerfMeasurement("INLINE_EDITOR_CLOSE", "Close inline editor");
+    
+    createPerfMeasurement("MULTI_RANGE_INLINE_EDITOR_SELECTED_RANGE", "Multi-range inline editor, select new range");
 
     exports.addMeasurement          = addMeasurement;
     exports.finalizeMeasurement     = finalizeMeasurement;

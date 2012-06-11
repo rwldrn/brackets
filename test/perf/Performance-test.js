@@ -42,6 +42,8 @@ define(function (require, exports, module) {
     var jsLintPrevSetting;
 
     describe("Performance Tests", function () {
+        
+        this.performance = true;
 
         // Note: this tests assumes that the "brackets-scenario" repo is in the same folder
         //       as the "brackets-app"
@@ -57,7 +59,7 @@ define(function (require, exports, module) {
             runs(function () {
                 CommandManager.execute(Commands.FILE_OPEN, {fullPath: testPath + path})
                     .done(function () {
-                        PerformanceReporter.logTestWindow(PerfUtils.OPEN_FILE, "Open file - " + path);
+                        PerformanceReporter.logTestWindow(PerfUtils.OPEN_FILE, path);
                         PerformanceReporter.clearTestWindow();
                         
                         didOpen = true;

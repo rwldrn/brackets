@@ -34,122 +34,123 @@ define(function (require, exports, module) {
         FileIndexManager,       // loaded from brackets.test
         FileViewController,     // loaded from brackets.test
         ProjectManager,         // loaded from brackets.test
+        PerfUtils,              // loaded from brackets.test
         
         FileUtils           = brackets.getModule("file/FileUtils"),
         NativeFileSystem    = brackets.getModule("file/NativeFileSystem").NativeFileSystem,
-        SpecRunnerUtils     = brackets.getModule("spec/SpecRunnerUtils.js");
+        SpecRunnerUtils     = brackets.getModule("spec/SpecRunnerUtils.js"),
+        PerformanceReporter = brackets.getModule("perf/PerformanceReporter.js");
 
     // Local modules
     var JSUtils             = require("JSUtils");
 
-    var extensionPath = FileUtils.getNativeModuleDirectoryPath(module);
+    var extensionPath = FileUtils.getNativeModuleDirectoryPath(module),
+        testPath = extensionPath + "/unittest-files",
+        testWindow,
+        initInlineTest;
+
+    function rewriteProject(spec) {
+        var result = new $.Deferred();
     
-    describe("JSQuickEdit", function () {
-
-        var testPath = extensionPath + "/unittest-files",
-            testWindow,
-            initInlineTest;
-
-        function rewriteProject(spec) {
-            var result = new $.Deferred();
-        
-            FileIndexManager.getFileInfoList("all").done(function (allFiles) {
-                // convert fileInfos to fullPaths
-                allFiles = allFiles.map(function (fileInfo) {
-                    return fileInfo.fullPath;
-                });
-                
-                // parse offsets and save
-                SpecRunnerUtils.saveFilesWithoutOffsets(allFiles).done(function (offsetInfos) {
-                    spec.infos = offsetInfos;
+        FileIndexManager.getFileInfoList("all").done(function (allFiles) {
+            // convert fileInfos to fullPaths
+            allFiles = allFiles.map(function (fileInfo) {
+                return fileInfo.fullPath;
+            });
             
-                    // install after function to restore file content
-                    spec.after(function () {
-                        var done = false;
-                        
-                        runs(function () {
-                            SpecRunnerUtils.saveFilesWithOffsets(spec.infos).done(function () {
-                                done = true;
-                            });
+            // parse offsets and save
+            SpecRunnerUtils.saveFilesWithoutOffsets(allFiles).done(function (offsetInfos) {
+                spec.infos = offsetInfos;
+        
+                // install after function to restore file content
+                spec.after(function () {
+                    var done = false;
+                    
+                    runs(function () {
+                        SpecRunnerUtils.saveFilesWithOffsets(spec.infos).done(function () {
+                            done = true;
                         });
-                        
-                        waitsFor(function () { return done; }, "saveFilesWithOffsets timeout", 1000);
                     });
                     
-                    result.resolve();
-                }).fail(function () {
-                    result.reject();
+                    waitsFor(function () { return done; }, "saveFilesWithOffsets timeout", 1000);
                 });
+                
+                result.resolve();
+            }).fail(function () {
+                result.reject();
             });
-            
-            return result.promise();
-        }
+        });
         
-        /**
-         * Performs setup for an inline editor test. Parses offsets (saved to Spec.offsets) for all files in
-         * the test project (testPath) and saves files back to disk without offset markup.
-         * When finished, open an editor for the specified project relative file path
-         * then attempts opens an inline editor at the given offset. Installs an after()
-         * function restore all file content back to original state with offset markup.
-         * 
-         * @param {!string} openFile Project relative file path to open in a main editor.
-         * @param {!number} openOffset The offset index location within openFile to open an inline editor.
-         * @param {?boolean} expectInline Use false to verify that an inline editor should not be opened. Omit otherwise.
-         */
-        var _initInlineTest = function (openFile, openOffset, expectInline, workingSet) {
-            var allFiles,
-                hostOpened = false,
-                err = false,
-                inlineOpened = null,
-                spec = this,
-                rewriteDone = false,
-                rewriteErr = false;
-            
-            workingSet = workingSet || [];
-            
-            expectInline = (expectInline !== undefined) ? expectInline : true;
-            
-            SpecRunnerUtils.loadProjectInTestWindow(testPath);
-            
-            runs(function () {
-                rewriteProject(spec)
-                    .done(function () { rewriteDone = true; })
-                    .fail(function () { rewriteErr = true; });
+        return result.promise();
+    }
+    
+    /**
+     * Performs setup for an inline editor test. Parses offsets (saved to Spec.offsets) for all files in
+     * the test project (testPath) and saves files back to disk without offset markup.
+     * When finished, open an editor for the specified project relative file path
+     * then attempts opens an inline editor at the given offset. Installs an after()
+     * function restore all file content back to original state with offset markup.
+     * 
+     * @param {!string} openFile Project relative file path to open in a main editor.
+     * @param {!number} openOffset The offset index location within openFile to open an inline editor.
+     * @param {?boolean} expectInline Use false to verify that an inline editor should not be opened. Omit otherwise.
+     */
+    var _initInlineTest = function (openFile, openOffset, expectInline, workingSet) {
+        var allFiles,
+            hostOpened = false,
+            err = false,
+            inlineOpened = null,
+            spec = this,
+            rewriteDone = false,
+            rewriteErr = false;
+        
+        workingSet = workingSet || [];
+        
+        expectInline = (expectInline !== undefined) ? expectInline : true;
+        
+        SpecRunnerUtils.loadProjectInTestWindow(testPath);
+        
+        runs(function () {
+            rewriteProject(spec)
+                .done(function () { rewriteDone = true; })
+                .fail(function () { rewriteErr = true; });
+        });
+        
+        waitsFor(function () { return rewriteDone && !rewriteErr; }, "rewriteProject timeout", 1000);
+        
+        runs(function () {
+            workingSet.push(openFile);
+            SpecRunnerUtils.openProjectFiles(workingSet).done(function (documents) {
+                hostOpened = true;
+            }).fail(function () {
+                err = true;
             });
+        });
+        
+        waitsFor(function () { return hostOpened && !err; }, "FILE_OPEN timeout", 1000);
+        
+        runs(function () {
+            var editor = EditorManager.getCurrentFullEditor();
             
-            waitsFor(function () { return rewriteDone && !rewriteErr; }, "rewriteProject timeout", 1000);
+            // open inline editor at specified offset index
+            var inlineEditorResult = SpecRunnerUtils.openInlineEditorAtOffset(
+                editor,
+                spec.infos[openFile].offsets[openOffset]
+            );
             
-            runs(function () {
-                workingSet.push(openFile);
-                SpecRunnerUtils.openProjectFiles(workingSet).done(function (documents) {
-                    hostOpened = true;
-                }).fail(function () {
-                    err = true;
-                });
+            inlineEditorResult.done(function () {
+                inlineOpened = true;
+            }).fail(function () {
+                inlineOpened = false;
             });
-            
-            waitsFor(function () { return hostOpened && !err; }, "FILE_OPEN timeout", 1000);
-            
-            runs(function () {
-                var editor = EditorManager.getCurrentFullEditor();
-                
-                // open inline editor at specified offset index
-                var inlineEditorResult = SpecRunnerUtils.openInlineEditorAtOffset(
-                    editor,
-                    spec.infos[openFile].offsets[openOffset]
-                );
-                
-                inlineEditorResult.done(function () {
-                    inlineOpened = true;
-                }).fail(function () {
-                    inlineOpened = false;
-                });
-            });
-            
-            waitsFor(function () {
-                return (inlineOpened !== null) && (inlineOpened === expectInline);
-            }, "inline editor timeout", 1000);
-        };
+        });
+        
+        waitsFor(function () {
+            return (inlineOpened !== null) && (inlineOpened === expectInline);
+        }, "inline editor timeout", 1000);
+    };
+    
+    describe("JSQuickEdit", function () {
 
         /*
          * 
@@ -166,6 +167,7 @@ define(function (require, exports, module) {
                     FileIndexManager    = testWindow.brackets.test.FileIndexManager;
                     FileViewController  = testWindow.brackets.test.FileViewController;
                     ProjectManager      = testWindow.brackets.test.ProjectManager;
+                    PerfUtils           = testWindow.brackets.test.PerfUtils;
                 });
                 
                 this.addMatchers({
@@ -583,5 +585,28 @@ define(function (require, exports, module) {
 ***/
             });
         }); //describe("JS Parsing")
+        
+        describe("Performance suite", function () {
+
+            beforeEach(function () {
+                initInlineTest = _initInlineTest.bind(this);
+                SpecRunnerUtils.createTestWindowAndRun(this, function (w) {
+                    testWindow          = w;
+                    CommandManager      = testWindow.brackets.test.CommandManager;
+                    PerfUtils           = testWindow.brackets.test.PerfUtils;
+                });
+            });
+    
+            afterEach(function () {
+                // revert files to original content with offset markup
+                SpecRunnerUtils.closeTestWindow();
+            });
+            
+            it("should open inline editors within parameters", function () {
+                initInlineTest("test1main.js", 0);
+                PerformanceReporter.logTestWindow(PerfUtils.INLINE_EDITOR_OPEN, "Brackets project");
+            });
+            
+        });
     });
 });

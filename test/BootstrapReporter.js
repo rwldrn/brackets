@@ -3,7 +3,7 @@
 (function ($) {
     'use strict';
 
-    jasmine.BootstrapReporter = function (doc) {
+    jasmine.BootstrapReporter = function (doc, filter) {
         this._paramMap = {};
         this.document = doc || document;
         this._env = jasmine.getEnv();
@@ -20,6 +20,7 @@
         }
         
         this._runAll = this._paramMap.spec === "All";
+        this._topLevelFilter = filter;
         this._env.specFilter = this.createSpecFilter(this._paramMap.spec);
         this._runner = this._env.currentRunner();
         
@@ -45,11 +46,25 @@
     };
 
     jasmine.BootstrapReporter.prototype.createSpecFilter = function (filterString) {
+        var self = this;
+        
         return function (spec) {
+            // filterString is undefined when no top-level suite is active (e.g. "All", "HTMLUtils", etc.)
+            // When undefined, all specs fail this filter and no tests are ran. This is by design.
+            // This setup allows the SpecRunner to load initially without automatically running all tests.
+            if (filterString === undefined) {
+                return false;
+            }
+            
             if (filterString === "All") {
                 return true;
             }
-            return spec.getFullName().indexOf(filterString) === 0;
+            
+            if (self._topLevelFilter && !self._topLevelFilter(spec)) {
+                return false;
+            }
+            
+            return (spec.getFullName().indexOf(filterString) === 0);
         };
     };
         
@@ -82,7 +97,11 @@
             self = this;
         
         // count specs attached directly to this suite
-        count = suite.specs().length;
+        suite.specs().forEach(function (spec, index) {
+            if (self._topLevelFilter(spec)) {
+                count++;
+            }
+        });
         
         // recursively count child suites
         suite.suites().forEach(function (child, index) {
@@ -110,11 +129,18 @@
             return 0;
         });
         
-        this.$suiteList.append(this._createSuiteListItem(null, this._runner.specs().length));
-        
         topLevel.forEach(function (suite, index) {
             self.$suiteList.append(self._createSuiteListItem(suite, self._countSpecs(suite)));
         });
+        
+        // count all speces
+        var allSpecsCount = 0;
+        $.each(this._topLevelSuiteMap, function (index, value) {
+            allSpecsCount += value.specCount;
+        });
+        
+        // add an "all" top-level suite
+        this.$suiteList.prepend(this._createSuiteListItem(null, allSpecsCount));
     };
     
     jasmine.BootstrapReporter.prototype._showProgressBar = function (spec) {
@@ -129,7 +155,8 @@
     jasmine.BootstrapReporter.prototype.reportRunnerStarting = function (runner) {
         var i,
             specs = runner.specs(),
-            topLevelData;
+            topLevelData,
+            self = this;
     
         // create top level suite list navigation
         this._createSuiteList();
@@ -144,11 +171,11 @@
         this._specCount = 0;
         this._specCompleteCount = 0;
         
-        for (i = 0; i < specs.length; i++) {
-            if (this._env.specFilter(specs[i])) {
-                this._specCount++;
+        specs.forEach(function (spec, index) {
+            if (self._env.specFilter(spec)) {
+                self._specCount++;
             }
-        }
+        });
         
         if (this._specCount) {
             this._showProgressBar();
