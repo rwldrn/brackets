@@ -203,7 +203,7 @@ define(function (require, exports, module) {
             _readFileAndGetFunctionList(fileInfo, result);
         }
         
-        result.alwayas(function () {
+        result.always(function () {
             PerfUtils.addMeasurement(PerfUtils.FUNCTION_LIST_FOR_FILE);
         });
                         
