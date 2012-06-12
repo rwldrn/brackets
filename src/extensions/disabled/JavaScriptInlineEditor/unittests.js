@@ -167,7 +167,6 @@ define(function (require, exports, module) {
                     FileIndexManager    = testWindow.brackets.test.FileIndexManager;
                     FileViewController  = testWindow.brackets.test.FileViewController;
                     ProjectManager      = testWindow.brackets.test.ProjectManager;
-                    PerfUtils           = testWindow.brackets.test.PerfUtils;
                 });
                 
                 this.addMatchers({
@@ -595,13 +594,17 @@ define(function (require, exports, module) {
         }); //describe("JS Parsing")
         
         describe("Performance suite", function () {
+            
+            this.performance = true;
 
             beforeEach(function () {
                 initInlineTest = _initInlineTest.bind(this);
                 SpecRunnerUtils.createTestWindowAndRun(this, function (w) {
                     testWindow          = w;
+                    EditorManager       = testWindow.brackets.test.EditorManager;
                     CommandManager      = testWindow.brackets.test.CommandManager;
                     PerfUtils           = testWindow.brackets.test.PerfUtils;
+                    FileIndexManager    = testWindow.brackets.test.FileIndexManager;
                 });
             });
     
@@ -612,7 +615,10 @@ define(function (require, exports, module) {
             
             it("should open inline editors within parameters", function () {
                 initInlineTest("test1main.js", 0);
-                PerformanceReporter.logTestWindow(PerfUtils.INLINE_EDITOR_OPEN, "Brackets project");
+                
+                runs(function () {
+                    PerformanceReporter.logTestWindow(PerfUtils.INLINE_EDITOR_OPEN, "Brackets project");
+                });
             });
             
         });
