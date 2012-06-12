@@ -38,8 +38,8 @@ define(function (require, exports, module) {
         
         FileUtils           = brackets.getModule("file/FileUtils"),
         NativeFileSystem    = brackets.getModule("file/NativeFileSystem").NativeFileSystem,
-        SpecRunnerUtils     = brackets.getModule("spec/SpecRunnerUtils.js"),
-        PerformanceReporter = brackets.getModule("perf/PerformanceReporter.js");
+        SpecRunnerUtils     = brackets.getModule("spec/SpecRunnerUtils"),
+        PerformanceReporter = brackets.getModule("perf/PerformanceReporter");
 
     // Local modules
     var JSUtils             = require("JSUtils");
@@ -497,7 +497,6 @@ define(function (require, exports, module) {
                     SpecRunnerUtils.closeTestWindow();
                 });
                 
-/***
                 it("should return the correct offsets if the file has changed", function () {
                     var didOpen = false,
                         gotError = false;
@@ -533,8 +532,11 @@ define(function (require, exports, module) {
 
                         FileIndexManager.getFileInfoList("all")
                             .done(function (fileInfos) {
+                                var extensionRequire = brackets.getModule('utils/ExtensionLoader').getRequireContextForExtension('JavaScriptInlineEditor');
+                                var JSUtilsInExtension = extensionRequire("JSUtils");
+
                                 // Look for "edit2" function
-                                JSUtils.findMatchingFunctions("edit2", fileInfos)
+                                JSUtilsInExtension.findMatchingFunctions("edit2", fileInfos)
                                     .done(function (result) { functions = result; });
                             });
                     });
@@ -547,8 +549,7 @@ define(function (require, exports, module) {
                         expect(functions[0].lineEnd).toBe(13);
                     });
                 });
-***/
-/***
+
                 it("should return a newly created function in an unsaved file", function () {
                     var didOpen = false,
                         gotError = false;
@@ -565,24 +566,31 @@ define(function (require, exports, module) {
                     
                     runs(function () {
                         var doc = DocumentManager.getCurrentDocument();
-                        
                         // Add a new function to the file
                         doc.setText(doc.getText() + "\n\nfunction TESTFUNCTION() {\n    return true;\n}\n");
                         
                         // Look for the selector we just created
-                        JSUtils.findMatchingFunctions("TESTFUNCTION", FileIndexManager.getFileInfoList("all"))
-                            .done(function (result) { functions = result; });
+                        FileIndexManager.getFileInfoList("all")
+                            .done(function (fileInfos) {
+                                var extensionRequire = brackets.getModule('utils/ExtensionLoader').getRequireContextForExtension('JavaScriptInlineEditor');
+                                var JSUtilsInExtension = extensionRequire("JSUtils");
+
+                                // Look for "TESTFUNCTION" function
+                                JSUtilsInExtension.findMatchingFunctions("TESTFUNCTION", fileInfos)
+                                    .done(function (result) {
+                                        functions = result;
+                                    });
+                            });
                     });
                     
                     waitsFor(function () { return functions !== null; }, "JSUtils.findMatchingFunctions() timeout", 1000);
                     
                     runs(function () {
                         expect(functions.length).toBe(1);
-                        expect(functions[0].lineStart).toBe(24);
-                        expect(functions[0].lineEnd).toBe(26);
+                        expect(functions[0].lineStart).toBe(33);
+                        expect(functions[0].lineEnd).toBe(35);
                     });
                 });
-***/
             });
         }); //describe("JS Parsing")
         
