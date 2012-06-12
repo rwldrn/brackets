@@ -56,12 +56,12 @@
                 return false;
             }
             
-            if (filterString === "All") {
-                return true;
+            if (!self._topLevelFilter(spec)) {
+                return false;
             }
             
-            if (self._topLevelFilter && !self._topLevelFilter(spec)) {
-                return false;
+            if (filterString === "All") {
+                return true;
             }
             
             return (spec.getFullName().indexOf(filterString) === 0);
@@ -130,7 +130,11 @@
         });
         
         topLevel.forEach(function (suite, index) {
-            self.$suiteList.append(self._createSuiteListItem(suite, self._countSpecs(suite)));
+            var count = self._countSpecs(suite);
+            
+            if (count > 0) {
+                self.$suiteList.append(self._createSuiteListItem(suite, count));
+            }
         });
         
         // count all speces
@@ -257,8 +261,16 @@
     
     jasmine.BootstrapReporter.prototype._updateStatus = function (spec) {
         var data = this._getTopLevelSuiteData(spec),
-            allData = this._topLevelSuiteMap.All,
-            results = spec.results();
+            allData,
+            results;
+        
+        // Top-level suite data will not exist if filtered
+        if (!data) {
+            return;
+        }
+        
+        allData = this._topLevelSuiteMap.All;
+        results = spec.results();
         
         this._updateSuiteStatus(data, results);
         this._updateSuiteStatus(allData, results);

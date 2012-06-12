@@ -26,8 +26,12 @@
 
 // Set the baseUrl to brackets/src
 require.config({
-    baseUrl: "../src"/*,
-    urlArgs: "bust=" + (new Date()).getTime() // cache busting */
+    baseUrl: "../src",
+    paths: {
+        "test": "../test",
+        "perf": "../test/perf",
+        "spec": "../test/spec"
+    }
 });
 
 define(function (require, exports, module) {
@@ -39,6 +43,10 @@ define(function (require, exports, module) {
         FileUtils           = require("file/FileUtils"),
         Menus               = require("command/Menus"),
         PerformanceReporter = require("perf/PerformanceReporter.js").PerformanceReporter;
+    
+    // Load both top-level suites. Filtering is applied at the top-level as a filter to BootstrapReporter.
+    require("test/UnitTestSuite");
+    require("test/PerformanceTestSuite");
     
     var suite;
         
@@ -128,6 +136,7 @@ define(function (require, exports, module) {
             
             suite = getParamMap().suite || localStorage.getItem("SpecRunner.suite") || "UnitTestSuite";
             
+            // Create a top-level filter to show/hide performance tests
             var isPerfSuite = (suite === "PerformanceTestSuite"),
                 performanceFilter = function (spec) {
                     if (spec.performance === true) {
@@ -148,21 +157,17 @@ define(function (require, exports, module) {
                 };
             
             jasmineEnv.addReporter(new jasmine.BootstrapReporter(document, performanceFilter));
-            jasmineEnv.addReporter(new PerformanceReporter());
             
-            // persist suite selection
+            // add performance reporting
+            if (isPerfSuite) {
+                jasmineEnv.addReporter(new PerformanceReporter());
+            }
+            
             localStorage.setItem("SpecRunner.suite", suite);
             
             $("#" + suite).closest("li").toggleClass("active", true);
             
-            var jsonResult = $.getJSON(suite + ".json");
-            
-            jsonResult.done(function (data) {
-                // load specs and run jasmine
-                require(data.specs, function () {
-                    jasmineEnv.execute();
-                });
-            });
+            jasmineEnv.execute();
         };
     }
 
