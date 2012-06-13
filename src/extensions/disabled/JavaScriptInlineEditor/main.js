@@ -56,8 +56,33 @@ define(function (require, exports, module) {
         return token.string;
     }
     
+    function _findInProject(functionName) {
+        var result = new $.Deferred();
+        PerfUtils.markStart(PerfUtils.JAVASCRIPT_FIND_FUNCTION);
+        
+        FileIndexManager.getFileInfoList("all")
+            .done(function (fileInfos) {
+                JSUtils.findMatchingFunctions(functionName, fileInfos)
+                    .done(function (functions) {
+                        PerfUtils.addMeasurement(PerfUtils.JAVASCRIPT_FIND_FUNCTION);
+                        result.resolve(functions);
+                    })
+                    .fail(function () {
+                        PerfUtils.addMeasurement(PerfUtils.JAVASCRIPT_FIND_FUNCTION);
+                        result.reject();
+                    });
+            })
+            .fail(function () {
+                PerfUtils.addMeasurement(PerfUtils.JAVASCRIPT_FIND_FUNCTION);
+                result.reject();
+            });
+        
+        return result.promise();
+    }
+    
     /**
      * @private
+     * For unit and performance tests. Allows lookup by function name instead of editor offset .
      *
      * @param {!Editor} hostEditor
      * @param {!string} functionName
@@ -67,33 +92,23 @@ define(function (require, exports, module) {
     function _createInlineEditor(hostEditor, functionName) {
         var result = new $.Deferred();
         PerfUtils.markStart(PerfUtils.JAVASCRIPT_INLINE_CREATE);
-
-        FileIndexManager.getFileInfoList("all")
-            .done(function (fileInfos) {
+        
+        _findInProject(functionName).done(function (functions) {
+            if (functions && functions.length > 0) {
+                var jsInlineEditor = new MultiRangeInlineEditor(functions);
+                jsInlineEditor.load(hostEditor);
                 
-                JSUtils.findMatchingFunctions(functionName, fileInfos)
-                    .done(function (functions) {
-                        if (functions && functions.length > 0) {
-                            var jsInlineEditor = new MultiRangeInlineEditor(functions);
-                            jsInlineEditor.load(hostEditor);
-                            
-                            PerfUtils.addMeasurement(PerfUtils.JAVASCRIPT_INLINE_CREATE);
-                            result.resolve(jsInlineEditor);
-                        } else {
-                            // No matching functions were found
-                            PerfUtils.addMeasurement(PerfUtils.JAVASCRIPT_INLINE_CREATE);
-                            result.reject();
-                        }
-                    })
-                    .fail(function () {
-                        PerfUtils.addMeasurement(PerfUtils.JAVASCRIPT_INLINE_CREATE);
-                        result.reject();
-                    });
-            })
-            .fail(function () {
+                PerfUtils.addMeasurement(PerfUtils.JAVASCRIPT_INLINE_CREATE);
+                result.resolve(jsInlineEditor);
+            } else {
+                // No matching functions were found
                 PerfUtils.addMeasurement(PerfUtils.JAVASCRIPT_INLINE_CREATE);
                 result.reject();
-            });
+            }
+        }).fail(function () {
+            PerfUtils.addMeasurement(PerfUtils.JAVASCRIPT_INLINE_CREATE);
+            result.reject();
+        });
         
         return result.promise();
     }
@@ -133,7 +148,9 @@ define(function (require, exports, module) {
     // init
     EditorManager.registerInlineEditProvider(javaScriptFunctionProvider);
     PerfUtils.createPerfMeasurement("JAVASCRIPT_INLINE_CREATE", "JavaScript Inline Editor Creation");
+    PerfUtils.createPerfMeasurement("JAVASCRIPT_FIND_FUNCTION", "JavaScript Find Function");
     
     // for unit tests only
     exports._createInlineEditor = _createInlineEditor;
+    exports._findInProject      = _findInProject;
 });

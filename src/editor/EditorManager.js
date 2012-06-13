@@ -153,12 +153,12 @@ define(function (require, exports, module) {
                 result.resolve();
             }).fail(function () {
                 // terminate timer that was started above
-                PerfUtils.finalizeMeasurement(PerfUtils.OPEN_INLINE_EDITOR);
+                PerfUtils.finalizeMeasurement(PerfUtils.INLINE_EDITOR_OPEN);
                 result.reject();
             });
         } else {
             // terminate timer that was started above
-            PerfUtils.finalizeMeasurement(PerfUtils.OPEN_INLINE_EDITOR);
+            PerfUtils.finalizeMeasurement(PerfUtils.INLINE_EDITOR_OPEN);
             result.reject();
         }
         

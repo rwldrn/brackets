@@ -596,28 +596,83 @@ define(function (require, exports, module) {
         describe("Performance suite", function () {
             
             this.performance = true;
+            
+            var testPath = SpecRunnerUtils.getTestPath("/../../../brackets-scenario/jquery-ui/");
 
             beforeEach(function () {
-                initInlineTest = _initInlineTest.bind(this);
                 SpecRunnerUtils.createTestWindowAndRun(this, function (w) {
-                    testWindow          = w;
-                    EditorManager       = testWindow.brackets.test.EditorManager;
+                    testWindow = w;
                     CommandManager      = testWindow.brackets.test.CommandManager;
+                    EditorManager       = testWindow.brackets.test.EditorManager;
                     PerfUtils           = testWindow.brackets.test.PerfUtils;
-                    FileIndexManager    = testWindow.brackets.test.FileIndexManager;
                 });
             });
     
             afterEach(function () {
-                // revert files to original content with offset markup
                 SpecRunnerUtils.closeTestWindow();
             });
             
-            it("should open inline editors within parameters", function () {
-                initInlineTest("test1main.js", 0);
+            it("should open inline editors", function () {
+                SpecRunnerUtils.loadProjectInTestWindow(testPath);
+                
+                var extensionRequire,
+                    JavaScriptQuickEdit,
+                    done = false,
+                    error = false;
                 
                 runs(function () {
-                    PerformanceReporter.logTestWindow(PerfUtils.INLINE_EDITOR_OPEN, "Brackets project");
+                    extensionRequire = testWindow.brackets.getModule('utils/ExtensionLoader').getRequireContextForExtension('JavaScriptInlineEditor');
+                    JavaScriptQuickEdit = extensionRequire("main");
+                    
+                    SpecRunnerUtils.openProjectFiles(["ui/jquery.effects.core.js"]).done(function () {
+                        done = true;
+                    }).fail(function () {
+                        error = true;
+                    });
+                });
+                
+                waitsFor(function () { return done && !error; }, 500);
+                
+                runs(function () {
+                    done = error = false;
+                    
+                    JavaScriptQuickEdit._createInlineEditor(EditorManager.getCurrentFullEditor(), "extend").done(function () {
+                        done = true;
+                    }).fail(function () {
+                        error = true;
+                    });
+                });
+                
+                waitsFor(function () { return done && !error; }, 500);
+                
+                runs(function () {
+                    PerformanceReporter.logTestWindow(PerfUtils.JAVASCRIPT_INLINE_CREATE, "jQuery UI project ");
+                });
+            });
+            
+            it("should find functions", function () {
+                SpecRunnerUtils.loadProjectInTestWindow(testPath);
+                
+                var extensionRequire,
+                    JavaScriptQuickEdit,
+                    done = false,
+                    error = false;
+                
+                runs(function () {
+                    extensionRequire = testWindow.brackets.getModule('utils/ExtensionLoader').getRequireContextForExtension('JavaScriptInlineEditor');
+                    JavaScriptQuickEdit = extensionRequire("main");
+                    
+                    JavaScriptQuickEdit._findInProject("extend").done(function () {
+                        done = true;
+                    }).fail(function () {
+                        error = true;
+                    });
+                });
+                
+                waitsFor(function () { return done && !error; }, 500);
+                
+                runs(function () {
+                    PerformanceReporter.logTestWindow(PerfUtils.JAVASCRIPT_FIND_FUNCTION, "jQuery UI project");
                 });
             });
             
