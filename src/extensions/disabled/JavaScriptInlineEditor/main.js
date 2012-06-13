@@ -56,6 +56,14 @@ define(function (require, exports, module) {
         return token.string;
     }
     
+    /**
+     * @private
+     * For unit and performance tests. Allows lookup by function name instead of editor offset
+     * without constructing an inline editor.
+     *
+     * @param {!string} functionName
+     * @return {$.Promise} a promise that will be resolved with an array of function offset information
+     */
     function _findInProject(functionName) {
         var result = new $.Deferred();
         PerfUtils.markStart(PerfUtils.JAVASCRIPT_FIND_FUNCTION);
