@@ -1,13 +1,13 @@
-{{0}}function func1() {
+function func1() {
     // comment
 }
 
 /*
  * comment
  */
-{{1}}var func2 = function() {
+var func2 = function() {
 
-{{2}}    func3: function() {
+    func3: function() {
         /* comment */
     }
 
